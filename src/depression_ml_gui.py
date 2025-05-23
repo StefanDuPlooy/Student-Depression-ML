@@ -517,6 +517,18 @@ class DepressionMLGUI:
         pred_frame = ttk.Frame(self.prediction_tab)
         pred_frame.pack(fill='x', padx=10, pady=10)
         
+        # Model info frame
+        model_info_frame = ttk.LabelFrame(pred_frame, text="Model Information", padding=10)
+        model_info_frame.pack(fill='x', padx=20, pady=5)
+        
+        self.model_info_var = tk.StringVar(value="No models trained yet")
+        model_info_label = ttk.Label(model_info_frame, textvariable=self.model_info_var,
+                                   font=('Arial', 11))
+        model_info_label.pack()
+        
+        # Update model info when models are trained
+        self.update_model_info()
+        
         button_frame = ttk.Frame(pred_frame)
         button_frame.pack(pady=10)
         
@@ -535,6 +547,15 @@ class DepressionMLGUI:
                                font=('Arial', 14, 'bold'))
         result_label.pack(pady=10)
         
+    def update_model_info(self):
+        """Update the model info display in prediction tab"""
+        if hasattr(self, 'model_info_var') and self.ml_project.results:
+            best_model_name = max(self.ml_project.results, 
+                                key=lambda x: self.ml_project.results[x]['roc_auc'])
+            best_score = self.ml_project.results[best_model_name]['roc_auc']
+            info_text = f"Using: {best_model_name} (ROC-AUC: {best_score:.3f})"
+            self.model_info_var.set(info_text)
+    
     def reset_prediction_form(self):
         """Reset all prediction form fields to defaults"""
         defaults = {
@@ -692,6 +713,9 @@ class DepressionMLGUI:
         report = self.ml_project.generate_report()
         self.results_text.delete(1.0, tk.END)
         self.results_text.insert(1.0, report)
+        
+        # Update model info in prediction tab
+        self.update_model_info()
     
     def show_plots(self):
         """Display all visualization plots"""
