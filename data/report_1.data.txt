@@ -1,0 +1,35 @@
+================================================================================
+STUDENT DEPRESSION PREDICTION - MODEL EVALUATION REPORT
+================================================================================
+
+1. DATASET OVERVIEW
+   - Total samples: 27901
+   - Features: 19
+   - Training samples: 26136
+   - Testing samples: 5581
+   - Class distribution in test set:
+     No Depression: 2313
+     Depression: 3268
+
+2. MODEL PERFORMANCE SUMMARY
+--------------------------------------------------------------------------------
+Model                Accuracy   Precision  Recall     F1-Score   ROC-AUC   
+--------------------------------------------------------------------------------
+Logistic Regression  0.841      0.862      0.868      0.865      0.917     
+Random Forest        0.840      0.855      0.876      0.865      0.911     
+Gradient Boosting    0.843      0.863      0.871      0.867      0.919     
+SVM                  0.841      0.860      0.870      0.865      0.904     
+Neural Network       0.787      0.835      0.793      0.813      0.867     
+
+3. BEST PERFORMING MODEL
+   Gradient Boosting with ROC-AUC score of 0.919
+
+4. DETAILED CLASSIFICATION REPORT - Gradient Boosting
+               precision    recall  f1-score   support
+
+No Depression       0.82      0.80      0.81      2313
+   Depression       0.86      0.87      0.87      3268
+
+     accuracy                           0.84      5581
+    macro avg       0.84      0.84      0.84      5581
+ weighted avg       0.84      0.84      0.84      5581

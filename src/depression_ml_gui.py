@@ -410,19 +410,105 @@ class DepressionMLGUI:
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
-        # Input fields
+        # Input fields with appropriate widgets
         self.prediction_inputs = {}
-        features = ['Gender', 'Age', 'City', 'Profession', 'Academic Pressure', 
-                   'Work Pressure', 'CGPA', 'Study Satisfaction', 'Job Satisfaction',
-                   'Sleep Duration', 'Dietary Habits', 'Degree', 
-                   'Have you ever had suicidal thoughts ?', 'Work/Study Hours',
-                   'Financial Stress', 'Family History of Mental Illness']
         
-        for i, feature in enumerate(features):
-            ttk.Label(scrollable_frame, text=f"{feature}:").grid(row=i, column=0, sticky='w', padx=10, pady=5)
-            var = tk.StringVar()
-            self.prediction_inputs[feature] = var
-            ttk.Entry(scrollable_frame, textvariable=var, width=30).grid(row=i, column=1, padx=10, pady=5)
+        # Define feature types and options
+        feature_configs = {
+            'Gender': {'type': 'dropdown', 'options': ['Male', 'Female']},
+            'Age': {'type': 'spinbox', 'from': 16, 'to': 35, 'default': 20},
+            'City': {'type': 'dropdown', 'options': []},  # Will be populated from data
+            'Profession': {'type': 'dropdown', 'options': []},  # Will be populated from data
+            'Academic Pressure': {'type': 'scale', 'from': 1, 'to': 5, 'default': 3},
+            'Work Pressure': {'type': 'scale', 'from': 1, 'to': 5, 'default': 3},
+            'CGPA': {'type': 'spinbox', 'from': 0.0, 'to': 10.0, 'increment': 0.1, 'default': 7.5},
+            'Study Satisfaction': {'type': 'scale', 'from': 1, 'to': 5, 'default': 3},
+            'Job Satisfaction': {'type': 'scale', 'from': 1, 'to': 5, 'default': 3},
+            'Sleep Duration': {'type': 'dropdown', 'options': ['Less than 5 hours', '5-6 hours', '6-7 hours', '7-8 hours', 'More than 8 hours']},
+            'Dietary Habits': {'type': 'dropdown', 'options': ['Healthy', 'Moderate', 'Unhealthy']},
+            'Degree': {'type': 'dropdown', 'options': []},  # Will be populated from data
+            'Have you ever had suicidal thoughts ?': {'type': 'radio', 'options': ['Yes', 'No']},
+            'Work/Study Hours': {'type': 'spinbox', 'from': 0, 'to': 24, 'default': 8},
+            'Financial Stress': {'type': 'radio', 'options': ['Yes', 'No']},
+            'Family History of Mental Illness': {'type': 'radio', 'options': ['Yes', 'No']}
+        }
+        
+        # Try to populate dropdown options from loaded data
+        if self.ml_project.df is not None:
+            df = self.ml_project.df
+            if 'City' in df.columns:
+                feature_configs['City']['options'] = sorted(df['City'].dropna().unique().tolist())
+            if 'Profession' in df.columns:
+                feature_configs['Profession']['options'] = sorted(df['Profession'].dropna().unique().tolist())
+            if 'Degree' in df.columns:
+                feature_configs['Degree']['options'] = sorted(df['Degree'].dropna().unique().tolist())
+        
+        # Create appropriate widgets for each feature
+        row = 0
+        for feature, config in feature_configs.items():
+            # Label
+            label = ttk.Label(scrollable_frame, text=f"{feature}:")
+            label.grid(row=row, column=0, sticky='w', padx=10, pady=5)
+            
+            if config['type'] == 'dropdown':
+                var = tk.StringVar()
+                if config['options']:
+                    var.set(config['options'][0])
+                widget = ttk.Combobox(scrollable_frame, textvariable=var, 
+                                    values=config['options'], state='readonly', width=27)
+                widget.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+                self.prediction_inputs[feature] = var
+                
+            elif config['type'] == 'spinbox':
+                if feature == 'CGPA':
+                    var = tk.DoubleVar(value=config.get('default', 0))
+                    widget = ttk.Spinbox(scrollable_frame, from_=config['from'], to=config['to'],
+                                       increment=config.get('increment', 1), textvariable=var,
+                                       width=28, format="%.1f")
+                else:
+                    var = tk.IntVar(value=config.get('default', 0))
+                    widget = ttk.Spinbox(scrollable_frame, from_=config['from'], to=config['to'],
+                                       textvariable=var, width=28)
+                widget.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+                self.prediction_inputs[feature] = var
+                
+            elif config['type'] == 'scale':
+                var = tk.IntVar(value=config.get('default', 3))
+                frame = ttk.Frame(scrollable_frame)
+                frame.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+                
+                scale = ttk.Scale(frame, from_=config['from'], to=config['to'],
+                                variable=var, orient='horizontal', length=200)
+                scale.pack(side='left')
+                
+                value_label = ttk.Label(frame, textvariable=var, width=3)
+                value_label.pack(side='left', padx=5)
+                
+                self.prediction_inputs[feature] = var
+                
+            elif config['type'] == 'radio':
+                var = tk.StringVar(value=config['options'][1])  # Default to 'No'
+                frame = ttk.Frame(scrollable_frame)
+                frame.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+                
+                for option in config['options']:
+                    rb = ttk.Radiobutton(frame, text=option, variable=var, value=option)
+                    rb.pack(side='left', padx=10)
+                
+                self.prediction_inputs[feature] = var
+            
+            row += 1
+        
+        # Add some helpful text
+        help_frame = ttk.LabelFrame(scrollable_frame, text="Feature Guidelines", padding=5)
+        help_frame.grid(row=row, column=0, columnspan=2, padx=10, pady=10, sticky='ew')
+        
+        help_text = """• Academic/Work Pressure: 1 (Low) to 5 (High)
+• Study/Job Satisfaction: 1 (Very Unsatisfied) to 5 (Very Satisfied)
+• CGPA: 0.0 to 10.0
+• Work/Study Hours: Daily hours spent working/studying"""
+        
+        ttk.Label(help_frame, text=help_text, justify='left').pack(anchor='w')
         
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -431,13 +517,49 @@ class DepressionMLGUI:
         pred_frame = ttk.Frame(self.prediction_tab)
         pred_frame.pack(fill='x', padx=10, pady=10)
         
-        ttk.Button(pred_frame, text="Predict Depression Risk", 
-                  command=self.make_prediction).pack(pady=10)
+        button_frame = ttk.Frame(pred_frame)
+        button_frame.pack(pady=10)
+        
+        ttk.Button(button_frame, text="Predict Depression Risk", 
+                  command=self.make_prediction, style='Accent.TButton').pack(side='left', padx=5)
+        
+        ttk.Button(button_frame, text="Reset Form", 
+                  command=self.reset_prediction_form).pack(side='left', padx=5)
+        
+        # Result frame
+        result_frame = ttk.LabelFrame(pred_frame, text="Prediction Result", padding=10)
+        result_frame.pack(fill='x', padx=20, pady=10)
         
         self.prediction_result = tk.StringVar()
-        result_label = ttk.Label(pred_frame, textvariable=self.prediction_result, 
+        result_label = ttk.Label(result_frame, textvariable=self.prediction_result, 
                                font=('Arial', 14, 'bold'))
         result_label.pack(pady=10)
+        
+    def reset_prediction_form(self):
+        """Reset all prediction form fields to defaults"""
+        defaults = {
+            'Gender': 'Male',
+            'Age': 20,
+            'Academic Pressure': 3,
+            'Work Pressure': 3,
+            'CGPA': 7.5,
+            'Study Satisfaction': 3,
+            'Job Satisfaction': 3,
+            'Work/Study Hours': 8,
+            'Have you ever had suicidal thoughts ?': 'No',
+            'Financial Stress': 'No',
+            'Family History of Mental Illness': 'No'
+        }
+        
+        for feature, var in self.prediction_inputs.items():
+            if feature in defaults:
+                var.set(defaults[feature])
+            elif hasattr(var, 'get') and isinstance(var.get(), str):
+                # For dropdown boxes, set to first option if available
+                if hasattr(var, '_values') and var._values:
+                    var.set(var._values[0])
+        
+        self.prediction_result.set("")
         
     def browse_file(self):
         """Browse for dataset file"""
@@ -668,18 +790,15 @@ class DepressionMLGUI:
             input_data = {}
             for feature, var in self.prediction_inputs.items():
                 value = var.get()
-                if not value:
-                    messagebox.showerror("Error", f"Please enter value for {feature}")
-                    return
                 
-                # Convert to appropriate type
-                if feature in ['Age', 'Academic Pressure', 'Work Pressure', 'CGPA', 
-                             'Study Satisfaction', 'Job Satisfaction', 'Work/Study Hours']:
-                    try:
-                        input_data[feature] = float(value)
-                    except ValueError:
-                        messagebox.showerror("Error", f"Invalid numeric value for {feature}")
-                        return
+                # Convert to appropriate type based on feature
+                if feature in ['Age', 'Work/Study Hours']:
+                    input_data[feature] = float(value)
+                elif feature in ['Academic Pressure', 'Work Pressure', 
+                               'Study Satisfaction', 'Job Satisfaction']:
+                    input_data[feature] = float(value)
+                elif feature == 'CGPA':
+                    input_data[feature] = float(value)
                 else:
                     input_data[feature] = value
             
@@ -714,21 +833,30 @@ class DepressionMLGUI:
             prediction = best_model.predict(input_scaled)[0]
             probability = best_model.predict_proba(input_scaled)[0]
             
-            # Display result
+            # Display result with color coding
             if prediction == 1:
-                result_text = f"Depression Risk: HIGH\n"
-                result_text += f"Probability: {probability[1]:.2%}\n"
-                result_text += f"(Using {best_model_name} model)"
+                result_text = f"⚠️ Depression Risk: HIGH\n"
+                result_text += f"Probability: {probability[1]:.1%}\n"
+                result_text += f"Model: {best_model_name}"
                 self.prediction_result.set(result_text)
-                self.root.after(0, lambda: self.prediction_result.set(result_text))
+                # You could add color here if using a Label widget with configure
             else:
-                result_text = f"Depression Risk: LOW\n"
-                result_text += f"Probability of depression: {probability[1]:.2%}\n"
-                result_text += f"(Using {best_model_name} model)"
+                result_text = f"✓ Depression Risk: LOW\n"
+                result_text += f"Probability of depression: {probability[1]:.1%}\n"
+                result_text += f"Model: {best_model_name}"
                 self.prediction_result.set(result_text)
+            
+            # Log prediction details
+            print(f"\nPrediction made using {best_model_name}:")
+            print(f"Input features: {input_data}")
+            print(f"Prediction: {'Depression' if prediction == 1 else 'No Depression'}")
+            print(f"Confidence: {max(probability):.1%}")
             
         except Exception as e:
             messagebox.showerror("Error", f"Prediction failed: {str(e)}")
+            print(f"Detailed error: {e}")
+            import traceback
+            traceback.print_exc()
 
 
 # Standalone script for command-line usage
