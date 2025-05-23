@@ -400,18 +400,19 @@ class DepressionMLGUI:
         # Create scrollable frame for input fields
         canvas = tk.Canvas(self.prediction_tab)
         scrollbar = ttk.Scrollbar(self.prediction_tab, orient="vertical", command=canvas.yview)
-        scrollable_frame = ttk.Frame(canvas)
+        self.scrollable_frame = ttk.Frame(canvas)  # Store reference
         
-        scrollable_frame.bind(
+        self.scrollable_frame.bind(
             "<Configure>",
             lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
         )
         
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         canvas.configure(yscrollcommand=scrollbar.set)
         
         # Input fields with appropriate widgets
         self.prediction_inputs = {}
+        self.prediction_widgets = {}  # Store widget references
         
         # Define feature types and options
         feature_configs = {
@@ -433,48 +434,39 @@ class DepressionMLGUI:
             'Family History of Mental Illness': {'type': 'radio', 'options': ['Yes', 'No']}
         }
         
-        # Try to populate dropdown options from loaded data
-        if self.ml_project.df is not None:
-            df = self.ml_project.df
-            if 'City' in df.columns:
-                feature_configs['City']['options'] = sorted(df['City'].dropna().unique().tolist())
-            if 'Profession' in df.columns:
-                feature_configs['Profession']['options'] = sorted(df['Profession'].dropna().unique().tolist())
-            if 'Degree' in df.columns:
-                feature_configs['Degree']['options'] = sorted(df['Degree'].dropna().unique().tolist())
-        
         # Create appropriate widgets for each feature
         row = 0
         for feature, config in feature_configs.items():
             # Label
-            label = ttk.Label(scrollable_frame, text=f"{feature}:")
+            label = ttk.Label(self.scrollable_frame, text=f"{feature}:")
             label.grid(row=row, column=0, sticky='w', padx=10, pady=5)
             
             if config['type'] == 'dropdown':
                 var = tk.StringVar()
                 if config['options']:
                     var.set(config['options'][0])
-                widget = ttk.Combobox(scrollable_frame, textvariable=var, 
+                widget = ttk.Combobox(self.scrollable_frame, textvariable=var, 
                                     values=config['options'], state='readonly', width=27)
                 widget.grid(row=row, column=1, padx=10, pady=5, sticky='w')
                 self.prediction_inputs[feature] = var
+                self.prediction_widgets[feature] = widget  # Store widget reference
                 
             elif config['type'] == 'spinbox':
                 if feature == 'CGPA':
                     var = tk.DoubleVar(value=config.get('default', 0))
-                    widget = ttk.Spinbox(scrollable_frame, from_=config['from'], to=config['to'],
+                    widget = ttk.Spinbox(self.scrollable_frame, from_=config['from'], to=config['to'],
                                        increment=config.get('increment', 1), textvariable=var,
                                        width=28, format="%.1f")
                 else:
                     var = tk.IntVar(value=config.get('default', 0))
-                    widget = ttk.Spinbox(scrollable_frame, from_=config['from'], to=config['to'],
+                    widget = ttk.Spinbox(self.scrollable_frame, from_=config['from'], to=config['to'],
                                        textvariable=var, width=28)
                 widget.grid(row=row, column=1, padx=10, pady=5, sticky='w')
                 self.prediction_inputs[feature] = var
                 
             elif config['type'] == 'scale':
                 var = tk.IntVar(value=config.get('default', 3))
-                frame = ttk.Frame(scrollable_frame)
+                frame = ttk.Frame(self.scrollable_frame)
                 frame.grid(row=row, column=1, padx=10, pady=5, sticky='w')
                 
                 scale = ttk.Scale(frame, from_=config['from'], to=config['to'],
@@ -488,7 +480,7 @@ class DepressionMLGUI:
                 
             elif config['type'] == 'radio':
                 var = tk.StringVar(value=config['options'][1])  # Default to 'No'
-                frame = ttk.Frame(scrollable_frame)
+                frame = ttk.Frame(self.scrollable_frame)
                 frame.grid(row=row, column=1, padx=10, pady=5, sticky='w')
                 
                 for option in config['options']:
@@ -500,7 +492,7 @@ class DepressionMLGUI:
             row += 1
         
         # Add some helpful text
-        help_frame = ttk.LabelFrame(scrollable_frame, text="Feature Guidelines", padding=5)
+        help_frame = ttk.LabelFrame(self.scrollable_frame, text="Feature Guidelines", padding=5)
         help_frame.grid(row=row, column=0, columnspan=2, padx=10, pady=10, sticky='ew')
         
         help_text = """• Academic/Work Pressure: 1 (Low) to 5 (High)
@@ -612,9 +604,44 @@ class DepressionMLGUI:
             self.data_info_text.delete(1.0, tk.END)
             self.data_info_text.insert(1.0, info_text)
             
+            # Update prediction tab dropdowns with actual data values
+            self.update_prediction_dropdowns()
+            
             messagebox.showinfo("Success", "Dataset loaded successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load dataset: {str(e)}")
+    
+    def update_prediction_dropdowns(self):
+        """Update dropdown values in prediction tab with actual data from dataset"""
+        if self.ml_project.df is None or not hasattr(self, 'prediction_widgets'):
+            return
+        
+        df = self.ml_project.df
+        
+        # Update City dropdown
+        if 'City' in df.columns and 'City' in self.prediction_widgets:
+            cities = sorted(df['City'].dropna().unique().tolist())
+            self.prediction_widgets['City']['values'] = cities
+            if cities:
+                self.prediction_inputs['City'].set(cities[0])
+        
+        # Update Profession dropdown
+        if 'Profession' in df.columns and 'Profession' in self.prediction_widgets:
+            professions = sorted(df['Profession'].dropna().unique().tolist())
+            self.prediction_widgets['Profession']['values'] = professions
+            if professions:
+                self.prediction_inputs['Profession'].set(professions[0])
+        
+        # Update Degree dropdown
+        if 'Degree' in df.columns and 'Degree' in self.prediction_widgets:
+            degrees = sorted(df['Degree'].dropna().unique().tolist())
+            self.prediction_widgets['Degree']['values'] = degrees
+            if degrees:
+                self.prediction_inputs['Degree'].set(degrees[0])
+        
+        print(f"Updated dropdowns - Cities: {len(cities) if 'cities' in locals() else 0}, "
+              f"Professions: {len(professions) if 'professions' in locals() else 0}, "
+              f"Degrees: {len(degrees) if 'degrees' in locals() else 0}")
     
     def preprocess_data(self):
         """Preprocess the loaded data"""
